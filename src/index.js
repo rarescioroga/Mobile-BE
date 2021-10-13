@@ -30,21 +30,34 @@ app.use(async (ctx, next) => {
   }
 });
 
-class Item {
-  constructor({ id, text, date, version }) {
+class Car {
+  constructor({ id, brand, model, firstRegisterDate, nrOfOwners, isRepainted, imageUrl }) {
     this.id = id;
-    this.text = text;
-    this.date = date;
-    this.version = version;
+    this.brand = brand;
+    this.model = model;
+    this.firstRegisterDate = firstRegisterDate;
+    this.nrOfOwners = nrOfOwners;
+    this.isRepainted = isRepainted;
+    this.imageUrl = imageUrl;
   }
 }
 
-const items = [];
+const cars = [];
+
 for (let i = 0; i < 3; i++) {
-  items.push(new Item({ id: `${i}`, text: `item ${i}`, date: new Date(Date.now() + i), version: 1 }));
+  cars.push(new Car({
+    id: `${i}`,
+    brand: `car brand ${i}`,
+    model: `car model ${i}`,
+    firstRegisterDate: new Date(Date.now() + i),
+    nrOfOwners: `${i}`,
+    isRepainted: false,
+    imageUrl: 'https://cdn.motor1.com/images/mgl/yKJwK/s1/2020-porsche-911-turbo.jpg'
+  }));
 }
-let lastUpdated = items[items.length - 1].date;
-let lastId = items[items.length - 1].id;
+
+let lastUpdated = cars[cars.length - 1].firstRegisterDate;
+let lastId = cars[cars.length - 1].id;
 const pageSize = 10;
 
 const broadcast = data =>
@@ -56,118 +69,120 @@ const broadcast = data =>
 
 const router = new Router();
 
-router.get('/item', ctx => {
+router.get('/car', ctx => {
   const ifModifiedSince = ctx.request.get('If-Modif ied-Since');
+
   if (ifModifiedSince && new Date(ifModifiedSince).getTime() >= lastUpdated.getTime() - lastUpdated.getMilliseconds()) {
     ctx.response.status = 304; // NOT MODIFIED
     return;
   }
-  const text = ctx.request.query.text;
-  const page = parseInt(ctx.request.query.page) || 1;
+
   ctx.response.set('Last-Modified', lastUpdated.toUTCString());
-  const sortedItems = items
-    .filter(item => text ? item.text.indexOf(text) !== -1 : true)
-    .sort((n1, n2) => -(n1.date.getTime() - n2.date.getTime()));
-  const offset = (page - 1) * pageSize;
-  // ctx.response.body = {
-  //   page,
-  //   items: sortedItems.slice(offset, offset + pageSize),
-  //   more: offset + pageSize < sortedItems.length
-  // };
-  ctx.response.body = items;
+  ctx.response.body = cars;
   ctx.response.status = 200;
 });
 
-router.get('/item/:id', async (ctx) => {
-  const itemId = ctx.request.params.id;
-  const item = items.find(item => itemId === item.id);
-  if (item) {
-    ctx.response.body = item;
+router.get('/car/:id', async (ctx) => {
+  const carId = ctx.request.params.id;
+  const car = cars.find(item => carId === item.id);
+
+  if (car) {
+    ctx.response.body = car;
     ctx.response.status = 200; // ok
   } else {
-    ctx.response.body = { issue: [{ warning: `item with id ${itemId} not found` }] };
+    ctx.response.body = { issue: [{ warning: `item with id ${carId} not found` }] };
     ctx.response.status = 404; // NOT FOUND (if you know the resource was deleted, then return 410 GONE)
   }
 });
 
-const createItem = async (ctx) => {
-  const item = ctx.request.body;
-  if (!item.text) { // validation
-    ctx.response.body = { issue: [{ error: 'Text is missing' }] };
+const createCar = async (ctx) => {
+  const car = ctx.request.body;
+
+  if (!car.brand || !car.model || !car.firstRegisterDate) { // validation
+    ctx.response.body = { issue: [{ error: 'Car does not have required fields' }] };
     ctx.response.status = 400; //  BAD REQUEST
     return;
   }
-  item.id = `${parseInt(lastId) + 1}`;
-  lastId = item.id;
-  item.date = new Date();
-  item.version = 1;
-  items.push(item);
-  ctx.response.body = item;
+
+  car.id = `${parseInt(lastId) + 1}`;
+  lastId = car.id;
+  car.firstRegisterDate = new Date();
+  car.nrOfOwners = 1;
+  car.isRepainted = false
+  cars.push(car);
+  ctx.response.body = car;
   ctx.response.status = 201; // CREATED
-  broadcast({ event: 'created', payload: { item } });
+  broadcast({ event: 'created', payload: { car } });
 };
 
-router.post('/item', async (ctx) => {
-  await createItem(ctx);
+router.post('/car', async (ctx) => {
+  await createCar(ctx);
 });
 
 router.put('/item/:id', async (ctx) => {
   const id = ctx.params.id;
-  const item = ctx.request.body;
-  item.date = new Date();
-  const itemId = item.id;
+  const car = ctx.request.body;
+  const itemId = car.id;
+
   if (itemId && id !== item.id) {
     ctx.response.body = { issue: [{ error: `Param id and body id should be the same` }] };
     ctx.response.status = 400; // BAD REQUEST
     return;
   }
+
   if (!itemId) {
-    await createItem(ctx);
+    await createCar(ctx);
     return;
   }
-  const index = items.findIndex(item => item.id === id);
+
+  const index = cars.findIndex(car => car.id === id);
+
   if (index === -1) {
-    ctx.response.body = { issue: [{ error: `item with id ${id} not found` }] };
+    ctx.response.body = { issue: [{ error: `car with id ${id} not found` }] };
     ctx.response.status = 400; // BAD REQUEST
     return;
   }
-  const itemVersion = parseInt(ctx.request.get('ETag')) || item.version;
-  if (itemVersion < items[index].version) {
-    ctx.response.body = { issue: [{ error: `Version conflict` }] };
-    ctx.response.status = 409; // CONFLICT
-    return;
-  }
-  item.version++;
-  items[index] = item;
+
+  cars[index] = car;
   lastUpdated = new Date();
-  ctx.response.body = item;
+  ctx.response.body = car;
   ctx.response.status = 200; // OK
-  broadcast({ event: 'updated', payload: { item } });
+  broadcast({ event: 'updated', payload: { car } });
 });
 
 router.del('/item/:id', ctx => {
   const id = ctx.params.id;
-  const index = items.findIndex(item => id === item.id);
+  const index = cars.findIndex(item => id === item.id);
+
   if (index !== -1) {
-    const item = items[index];
-    items.splice(index, 1);
+    const car = cars[index];
+    cars.splice(index, 1);
     lastUpdated = new Date();
-    broadcast({ event: 'deleted', payload: { item } });
+    broadcast({ event: 'deleted', payload: { car } });
   }
+
   ctx.response.status = 204; // no content
 });
 
 setInterval(() => {
   lastUpdated = new Date();
   lastId = `${parseInt(lastId) + 1}`;
-  const item = new Item({ id: lastId, text: `item ${lastId}`, date: lastUpdated, version: 1 });
-  items.push(item);
-  console.log(`
-   ${item.text}`);
-  broadcast({ event: 'created', payload: { item } });
+  const car = new Car({
+    id: lastId,
+    brand: `car brand ${lastId}`,
+    model: `car model ${lastId}`,
+    firstRegisterDate: new Date(Date.now() + lastId),
+    nrOfOwners: `${lastId}`,
+    isRepainted: false,
+  });
+
+  cars.push(car);
+  console.log(`${car.brand} ${car.model}`);
+
+  broadcast({ event: 'created', payload: { car } });
 }, 150000);
 
 app.use(router.routes());
 app.use(router.allowedMethods());
 
-server.listen(3000);
+server.listen(3005);
