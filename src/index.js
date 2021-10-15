@@ -112,19 +112,19 @@ const createCar = async (ctx) => {
   cars.push(car);
   ctx.response.body = car;
   ctx.response.status = 201; // CREATED
-  broadcast({ event: 'created', payload: { car } });
 };
 
 router.post('/car', async (ctx) => {
   await createCar(ctx);
 });
 
-router.put('/item/:id', async (ctx) => {
+router.put('/car/:id', async (ctx) => {
   const id = ctx.params.id;
   const car = ctx.request.body;
+  console.log(car);
   const itemId = car.id;
 
-  if (itemId && id !== item.id) {
+  if (itemId && id !== car.id) {
     ctx.response.body = { issue: [{ error: `Param id and body id should be the same` }] };
     ctx.response.status = 400; // BAD REQUEST
     return;
@@ -174,13 +174,14 @@ setInterval(() => {
     firstRegisterDate: new Date(Date.now() + lastId),
     nrOfOwners: `${lastId}`,
     isRepainted: false,
+    imageUrl: 'https://cdn.motor1.com/images/mgl/yKJwK/s1/2020-porsche-911-turbo.jpg'
   });
 
   cars.push(car);
   console.log(`${car.brand} ${car.model}`);
 
   broadcast({ event: 'created', payload: { car } });
-}, 150000);
+}, 5000);
 
 app.use(router.routes());
 app.use(router.allowedMethods());
