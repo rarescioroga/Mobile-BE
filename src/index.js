@@ -7,6 +7,12 @@ const Router = require('koa-router');
 const cors = require('koa-cors');
 const bodyparser = require('koa-bodyparser');
 
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 app.use(bodyparser());
 app.use(cors());
 app.use(async (ctx, next) => {
@@ -30,35 +36,65 @@ app.use(async (ctx, next) => {
   }
 });
 
-class Car {
-  constructor({ id, brand, model, firstRegisterDate, nrOfOwners, isRepainted, imageUrl }) {
+class Vacation {
+  constructor({ id, title, location, isBooked, nrPeople,  startDate, endDate, description, imageUrl }) {
     this.id = id;
-    this.brand = brand;
-    this.model = model;
-    this.firstRegisterDate = firstRegisterDate;
-    this.nrOfOwners = nrOfOwners;
-    this.isRepainted = isRepainted;
+    this.title = title;
+    this.location = location;
+    this.isBooked = isBooked;
+    this.nrPeople = nrPeople;
+    this.startDate = startDate;
+    this.endDate = endDate;
+    this.description = description;
     this.imageUrl = imageUrl;
   }
 }
 
-const cars = [];
+const vacations = [];
+const locations = [
+  'Paris, France',
+  'Rome, Italy',
+  'Bucharest, Romania',
+  'Budapest, Hungary',
+  'Berlin, Germany',
+  'Vienna, Austria',
+  'New York USA',
+  'Los Angeles, USA',
+  'London, England',
+  'Cluj-Napoca, Romania',
+  'Prague, Czech Republic',
+]
+const pictureUrls = [
+  'https://cdn.pixabay.com/photo/2018/04/25/09/26/eiffel-tower-3349075_1280.jpg', //Paris
+  'https://cdn.pixabay.com/photo/2019/10/06/08/57/architecture-4529605_1280.jpg', //Rome
+  'https://cdn.pixabay.com/photo/2015/09/01/18/16/peoples-house-917369_1280.jpg', //Bucharest
+  'https://cdn.pixabay.com/photo/2016/06/06/23/49/parliament-1440679_1280.jpg', //Budapest
+  'https://cdn.pixabay.com/photo/2018/08/08/18/49/church-3592874_1280.jpg', //Berlin
+  'https://cdn.pixabay.com/photo/2019/08/13/17/17/building-4403839_1280.jpg', //Vienna
+  'https://cdn.pixabay.com/photo/2015/03/11/12/31/buildings-668616_1280.jpg', //New York
+  'https://cdn.pixabay.com/photo/2015/11/07/12/00/city-1031706_1280.jpg', //Los Angeles
+  'https://cdn.pixabay.com/photo/2014/11/13/23/34/palace-530055_1280.jpg', //London
+  'https://cdn.pixabay.com/photo/2014/07/12/20/02/cluj-napoca-391379_1280.jpg', //Cluj
+  'https://cdn.pixabay.com/photo/2017/12/10/17/40/prague-3010407_1280.jpg' //Prague
+]
 
-for (let i = 0; i < 3; i++) {
-  cars.push(new Car({
+for (let i = 0; i < 4; i++) {
+  const index = getRandomInt(0, locations.length - 1);
+  vacations.push(new Vacation({
     id: `${i}`,
-    brand: `car brand ${i}`,
-    model: `car model ${i}`,
-    firstRegisterDate: new Date(Date.now() + i),
-    nrOfOwners: `${i}`,
-    isRepainted: false,
-    imageUrl: 'https://cdn.motor1.com/images/mgl/yKJwK/s1/2020-porsche-911-turbo.jpg'
+    title: `Vacation title ${i}`,
+    location: locations[index],
+    isBooked: false,
+    startDate: new Date(Date.now() + i),
+    endDate: new Date(Date.now() + i + 7),
+    description: `Vacation description ${i}`,
+    nrPeople: getRandomInt(1, 4),
+    imageUrl: pictureUrls[index],
   }));
 }
 
-let lastUpdated = cars[cars.length - 1].firstRegisterDate;
-let lastId = cars[cars.length - 1].id;
-const pageSize = 10;
+let lastUpdated = vacations[vacations.length - 1].startDate;
+let lastId = vacations[vacations.length - 1].id;
 
 const broadcast = data =>
   wss.clients.forEach(client => {
@@ -69,7 +105,7 @@ const broadcast = data =>
 
 const router = new Router();
 
-router.get('/car', ctx => {
+router.get('/vacation', ctx => {
   const ifModifiedSince = ctx.request.get('If-Modif ied-Since');
 
   if (ifModifiedSince && new Date(ifModifiedSince).getTime() >= lastUpdated.getTime() - lastUpdated.getMilliseconds()) {
@@ -78,87 +114,89 @@ router.get('/car', ctx => {
   }
 
   ctx.response.set('Last-Modified', lastUpdated.toUTCString());
-  ctx.response.body = cars;
+  ctx.response.body = vacations;
   ctx.response.status = 200;
 });
 
-router.get('/car/:id', async (ctx) => {
-  const carId = ctx.request.params.id;
-  const car = cars.find(item => carId === item.id);
+router.get('/vacation/:id', async (ctx) => {
+  const vacationId = ctx.params.id;
+  console.log('vacationId', vacationId);
+  const vacation = vacations.find(item => vacationId === item.id);
 
-  if (car) {
-    ctx.response.body = car;
+  if (vacation) {
+    ctx.response.body = vacation;
     ctx.response.status = 200; // ok
   } else {
-    ctx.response.body = { issue: [{ warning: `item with id ${carId} not found` }] };
+    ctx.response.body = { issue: [{ warning: `item with id ${vacationId} not found` }] };
     ctx.response.status = 404; // NOT FOUND (if you know the resource was deleted, then return 410 GONE)
   }
 });
 
-const createCar = async (ctx) => {
-  const car = ctx.request.body;
+const createVacation = async (ctx) => {
+  const vacation = ctx.request.body;
 
-  if (!car.brand || !car.model || !car.firstRegisterDate) { // validation
-    ctx.response.body = { issue: [{ error: 'Car does not have required fields' }] };
+  //id, title, location, isBooked, nrPeople,  startDate, endDate, description, imageUrl
+
+  if (!vacation.title || !vacation.location || !vacation.startDate || !vacation.endDate) { // validation
+    ctx.response.body = { issue: [{ error: 'Vacation does not have required fields' }] };
     ctx.response.status = 400; //  BAD REQUEST
     return;
   }
 
-  car.id = `${parseInt(lastId) + 1}`;
-  lastId = car.id;
-  car.firstRegisterDate = new Date();
-  car.nrOfOwners = 1;
-  car.isRepainted = false
-  cars.push(car);
-  ctx.response.body = car;
+  vacation.id = `${parseInt(lastId) + 1}`;
+  lastId = vacation.id;
+  vacation.imageUrl = pictureUrls[getRandomInt(0, pictureUrls.length)]
+
+  vacations.push(vacation);
+  ctx.response.body = vacation;
   ctx.response.status = 201; // CREATED
 };
 
-router.post('/car', async (ctx) => {
-  await createCar(ctx);
+router.post('/vacation', async (ctx) => {
+  await createVacation(ctx);
 });
 
-router.put('/car/:id', async (ctx) => {
+router.put('/vacation/:id', async (ctx) => {
   const id = ctx.params.id;
-  const car = ctx.request.body;
-  console.log(car);
-  const itemId = car.id;
+  const vacation = ctx.request.body;
+  console.log(vacation);
+  const itemId = vacation.id;
 
-  if (itemId && id !== car.id) {
+  if (itemId && id !== vacation.id) {
     ctx.response.body = { issue: [{ error: `Param id and body id should be the same` }] };
     ctx.response.status = 400; // BAD REQUEST
     return;
   }
 
   if (!itemId) {
-    await createCar(ctx);
+    await createVacation(ctx);
     return;
   }
 
-  const index = cars.findIndex(car => car.id === id);
+  const index = vacations.findIndex(item => item.id === id);
 
   if (index === -1) {
-    ctx.response.body = { issue: [{ error: `car with id ${id} not found` }] };
+    ctx.response.body = { issue: [{ error: `vacation with id ${id} not found` }] };
     ctx.response.status = 400; // BAD REQUEST
     return;
   }
 
-  cars[index] = car;
+  vacations[index] = vacation;
   lastUpdated = new Date();
-  ctx.response.body = car;
+  ctx.response.body = vacation;
   ctx.response.status = 200; // OK
-  broadcast({ event: 'updated', payload: { car } });
+  broadcast({ event: 'updated', payload: { vacation } });
 });
 
-router.del('/item/:id', ctx => {
+router.del('/vacation/:id', ctx => {
   const id = ctx.params.id;
-  const index = cars.findIndex(item => id === item.id);
+  const index = vacations.findIndex(item => id === item.id);
 
   if (index !== -1) {
-    const car = cars[index];
-    cars.splice(index, 1);
+    const vacation = vacations[index];
+    vacations.splice(index, 1);
     lastUpdated = new Date();
-    broadcast({ event: 'deleted', payload: { car } });
+    broadcast({ event: 'deleted', payload: { vacation } });
   }
 
   ctx.response.status = 204; // no content
@@ -167,21 +205,26 @@ router.del('/item/:id', ctx => {
 setInterval(() => {
   lastUpdated = new Date();
   lastId = `${parseInt(lastId) + 1}`;
-  const car = new Car({
-    id: lastId,
-    brand: `car brand ${lastId}`,
-    model: `car model ${lastId}`,
-    firstRegisterDate: new Date(Date.now() + lastId),
-    nrOfOwners: `${lastId}`,
-    isRepainted: false,
-    imageUrl: 'https://cdn.motor1.com/images/mgl/yKJwK/s1/2020-porsche-911-turbo.jpg'
+
+  const index = getRandomInt(0, locations.length - 1);
+
+  const vacation = new Vacation({
+    id: `${lastId}`,
+    title: `Vacation title ${lastId}`,
+    location: locations[index],
+    isBooked: false,
+    startDate: new Date(Date.now() + lastId),
+    endDate: new Date(Date.now() + lastId + 7),
+    description: `Vacation description ${lastId}`,
+    nrPeople: getRandomInt(1, 4),
+    imageUrl: pictureUrls[index],
   });
 
-  cars.push(car);
-  console.log(`${car.brand} ${car.model}`);
+  vacations.push(vacation);
+  console.log(`${vacation.title} ${vacation.location}`);
 
-  broadcast({ event: 'created', payload: { car } });
-}, 5000);
+  broadcast({ event: 'created', payload: { vacation } });
+}, 10000);
 
 app.use(router.routes());
 app.use(router.allowedMethods());
