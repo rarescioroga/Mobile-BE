@@ -15,11 +15,11 @@ export class CarStore {
   }
 
   async insert(car) {
-    const { brand, model, firstRegistrationDate } = car;
+    const { brand, model, firstRegisterDate } = car;
     if (!brand) { // validation
       throw new Error('Missing brand property')
     }
-    if (!firstRegistrationDate) { // validation
+    if (!firstRegisterDate) { // validation
       throw new Error('Missing firstRegistrationDate property')
     }
     if (!model) { // validation

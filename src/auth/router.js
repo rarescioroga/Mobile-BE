@@ -29,7 +29,7 @@ router.post('/login', async (ctx) => {
   const response = ctx.response;
   const user = await userStore.findOne({ username: credentials.username });
   if (user && credentials.password === user.password) {
-    response.body = { token: createToken(user), expirationDate: addTimeToCurrentDate(AVAILABILITY_TIMEFRAME) };
+    response.body = { token: createToken(user), expirationDate: addTimeToCurrentDate(AVAILABILITY_TIMEFRAME), user };
     response.status = 201; // created
   } else {
     response.body = { issue: [{ error: 'Invalid credentials' }] };

@@ -30,7 +30,7 @@ router.get('/:id', async (ctx) => {
 
 const createCar = async (ctx, car, response) => {
   try {
-    car.userId = userId;
+    car.userId = ctx.state.user._id;
     response.body = await carStore.insert(car);
     response.status = 201; // created
   } catch (err) {
