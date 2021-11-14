@@ -4,7 +4,7 @@ import http from 'http';
 import Router from 'koa-router';
 import bodyParser from "koa-bodyparser";
 import { timingLogger, exceptionHandler, jwtConfig, initWss, verifyClient } from './utils';
-import { router as carRouter } from './car';
+import { router as vacationRouter } from './vacation';
 import { router as authRouter } from './auth';
 import jwt from 'koa-jwt';
 import cors from '@koa/cors';
@@ -34,7 +34,7 @@ app.use(jwt(jwtConfig));
 // protected
 const protectedApiRouter = new Router({ prefix });
 protectedApiRouter
-  .use('/car', carRouter.routes());
+  .use('/vacation', vacationRouter.routes());
 app
   .use(protectedApiRouter.routes())
   .use(protectedApiRouter.allowedMethods());

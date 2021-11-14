@@ -1,5 +1,5 @@
 import Router from 'koa-router';
-import carStore from './store';
+import vacationStore from './store';
 import { broadcast } from "../utils";
 
 export const router = new Router();
@@ -7,18 +7,18 @@ export const router = new Router();
 router.get('/', async (ctx) => {
   const response = ctx.response;
   const userId = ctx.state.user._id;
-  response.body = await carStore.find({ userId });
+  response.body = await vacationStore.find({ userId });
   response.status = 200; // ok
 });
 
 router.get('/:id', async (ctx) => {
   const userId = ctx.state.user._id;
-  const car = await carStore.findOne({ _id: ctx.params.id });
+  const vacation = await vacationStore.findOne({ _id: ctx.params.id });
   const response = ctx.response;
 
-  if (car) {
-    if (car.userId === userId) {
-      response.body = car;
+  if (vacation) {
+    if (vacation.userId === userId) {
+      response.body = vacation;
       response.status = 200; // ok
     } else {
       response.status = 403; // forbidden
@@ -28,10 +28,10 @@ router.get('/:id', async (ctx) => {
   }
 });
 
-const createCar = async (ctx, car, response) => {
+const createVacation = async (ctx, vacation, response) => {
   try {
-    car.userId = ctx.state.user._id;
-    response.body = await carStore.insert(car);
+    vacation.userId = ctx.state.user._id;
+    response.body = await vacationStore.insert(vacation);
     response.status = 201; // created
   } catch (err) {
     response.body = { message: err.message };
@@ -39,31 +39,31 @@ const createCar = async (ctx, car, response) => {
   }
 };
 
-router.post('/', async ctx => await createCar(ctx, ctx.request.body, ctx.response));
+router.post('/', async ctx => await createVacation(ctx, ctx.request.body, ctx.response));
 
 router.put('/:id', async (ctx) => {
-  const car = ctx.request.body;
+  const vacation = ctx.request.body;
   const id = ctx.params.id;
-  const carId = car._id;
+  const vacationId = vacation._id;
   const response = ctx.response;
 
-  if (carId && carId !== id) {
+  if (vacationId && vacationId !== id) {
     response.body = { message: 'Param id and body _id should be the same' };
     response.status = 400; // bad request
     return;
   }
 
-  if (!carId) {
-    await createCar(ctx, car, response);
+  if (!vacationId) {
+    await createVacation(ctx, vacation, response);
     return;
   }
 
   const userId = ctx.state.user._id;
-  car.userId = userId;
-  const updatedCount = await carStore.update({ _id: id }, car);
+  vacation.userId = userId;
+  const updatedCount = await vacationStore.update({ _id: id }, vacation);
 
   if (updatedCount === 1) {
-    response.body = car;
+    response.body = vacation;
     response.status = 200; // ok
   } else {
     response.body = { message: 'Resource no longer exists' };
@@ -73,12 +73,12 @@ router.put('/:id', async (ctx) => {
 
 router.del('/:id', async (ctx) => {
   const userId = ctx.state.user._id;
-  const note = await carStore.findOne({ _id: ctx.params.id });
+  const vacation = await vacationStore.findOne({ _id: ctx.params.id });
 
-  if (note && userId !== note.userId) {
+  if (vacation && userId !== vacationId.userId) {
     ctx.response.status = 403; // forbidden
   } else {
-    await carStore.remove({ _id: ctx.params.id });
+    await vacationStore.remove({ _id: ctx.params.id });
     ctx.response.status = 204; // no content
   }
 });
